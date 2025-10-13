@@ -1,0 +1,11 @@
+lib
+node_modules
+projects
+.config.*
+.flows_cred.json*
+.flows_cred.json
+.flows.json.*
+.flows.json.$$$
+.package.json
+.package-lock.json
+.settings.js.*

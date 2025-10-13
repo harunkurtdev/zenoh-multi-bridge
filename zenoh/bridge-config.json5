@@ -1,0 +1,51 @@
+{
+  "mode": "peer",
+  "connect": {
+    "endpoints": ["tcp/zenoh-router:7447"]
+  },
+  "listen": {
+    "endpoints": ["tcp/0.0.0.0:7448"]
+  },
+  "scouting": {
+    "multicast": {
+      "enabled": true
+    }
+  },
+  "plugins": {
+    "mqtt": {
+      "port": "0.0.0.0:1883",
+      "scope": "mqtt/demo",
+      "allow": ".*",
+      // "deny": "private/.*",
+      "generalise_pubs": [
+        "sensor/*",
+        "device/*",
+        "data/*"
+      ],
+      "generalise_subs": [
+        "sensor/**",
+        "device/**",
+        "data/**"
+      ],
+      "tx_channel_size": 65536,
+      // "tls": {
+      //   "server_private_key": "/path/to/private-key.pem",
+      //   "server_certificate": "/path/to/certificate.pem",
+      //   "root_ca_certificate": "/path/to/root-ca.pem"
+      // },
+      
+      // "auth": {
+      //   "dictionary_file": "/path/to/mqtt-users.txt"
+      // }
+    }
+  },
+  "plugins_loading": {
+    "enabled": true
+  },
+  "rest": {
+    "http_port": 8000
+  },
+  "adminspace": {
+    "enabled": true
+  }
+}

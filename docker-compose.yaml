@@ -1,0 +1,137 @@
+version: '3.8'
+services:
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    ports:
+      - '1883:1883'
+      - '9001:9001'
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - zenoh-mqtt-net
+
+  zenoh-router:
+    container_name: zenoh-router
+    image: eclipse/zenoh:latest
+    restart: unless-stopped
+    ports:
+      - '7447:7447'
+      - '8000:8000'
+    environment:
+      - RUST_LOG=debug
+    networks:
+      - zenoh-mqtt-net
+    command: |
+      --listen tcp/0.0.0.0:7447 --rest-http-port 8000
+
+  node-red:
+    container_name: node-red
+    build:
+      context: ./nodered
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    ports:
+      - '1880:1880'
+    volumes:
+      - nodered_data:/data
+      - ./nodered/data/settings.js:/data/settings.js:rw
+      - ./nodered/data/flows.json:/data/flows.json:rw
+    environment:
+      - TZ=UTC
+      - FLOWS=flows.json
+      - NODE_RED_ENABLE_PROJECTS=true
+      - NODE_RED_ENABLE_SAFE_MODE=false
+      - MQTT_ADDR=mosquitto
+      - MQTT_PORT=1883
+      - ZENOH_MQTT_ADDR=zenoh-mqtt-bridge
+      - ZENOH_MQTT_PORT=1883
+    networks:
+      - zenoh-mqtt-net
+
+  zenoh-mqtt-bridge:
+    container_name: zenoh-mqtt-bridge
+    image: eclipse/zenoh-bridge-mqtt:latest
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - zenoh-router
+    ports:
+      - '8001:8000'
+    volumes:
+      - ./zenoh-mqtt-bridge/config.json5:/etc/zenoh/config.json5
+    environment:
+      - RUST_LOG=debug
+    networks:
+      - zenoh-mqtt-net
+    command: '-c /etc/zenoh/config.json5'
+
+  mqtt-publisher:
+    container_name: mqtt-publisher
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - zenoh-router
+      - zenoh-mqtt-bridge
+    networks:
+      - zenoh-mqtt-net
+    command: |
+      sh -c "
+      sleep 5 && while true; do
+        TEMP=$((15 + RANDOM % 30));
+        HUM=$((40 + RANDOM % 40));
+        TIME=$$(date -Iseconds);
+        # mosquitto_pub -h mosquitto -t 'sensor/temperature' -m 1
+        # mosquitto_pub -h mosquitto -p 1884 -t 'sensor/temperature' -m \"{\\\"temp\\\":$$TEMP,\\\"humidity\\\":$$HUM,\\\"timestamp\\\":\\\"$$TIME\\\"}\";
+        mosquitto_pub -h zenoh-mqtt-bridge -t 'sensor/temperature' -m \"{\\\"temp\\\":$$TEMP,\\\"humidity\\\":$$HUM,\\\"timestamp\\\":\\\"$$TIME\\\"}\";
+        echo \"[Publisher] Mesaj gönderildi: temp=$$TEMP hum=$$HUM\";
+        sleep 1;
+      done
+      "
+
+  mqtt-subscriber:
+    container_name: mqtt-subscriber
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - zenoh-mqtt-bridge
+      - mqtt-publisher
+    networks:
+      - zenoh-mqtt-net
+    command: |
+      sh -c "
+      sleep 5 && mosquitto_sub -h mosquitto -t 'sensor/#' -v
+      "
+
+  zenoh-subscriber:
+    container_name: zenoh-subscriber
+    build:
+      context: ./zenoh-subscriber
+    restart: unless-stopped
+    depends_on:
+      - zenoh-router
+      - zenoh-mqtt-bridge
+      - mqtt-publisher
+    volumes:
+      - ./zenoh-subscriber/subscriber.py:/app/subscriber.py
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - zenoh-mqtt-net
+    command: python3 subscriber.py
+    working_dir: /app
+
+volumes:
+  nodered_data:
+    driver: local
+
+networks:
+  zenoh-mqtt-net:
+    driver: bridge

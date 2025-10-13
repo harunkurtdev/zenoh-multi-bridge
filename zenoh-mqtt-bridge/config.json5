@@ -1,0 +1,41 @@
+{
+  mode: "client", // peer or client
+  connect: {
+    endpoints: [
+      "tcp/zenoh-router:7447",
+      // "tcp/mosquitto:1883"
+    ]
+  },
+  listen: {
+    endpoints: [
+      "tcp/0.0.0.0:7448"
+    ]
+  },
+  plugins: {
+    rest: {
+      http_port: 8000,
+    },
+    mqtt: {
+      port: "1883",
+      scope: "mqtt/demo",
+      // allow: ".*",
+      // deny: "private/.*|\\$SYS/.*",
+      allow: ".*",
+      deny: "^\\$SYS/.*|^private/.*",
+      generalise_subs: [
+        "sensor/**",
+        "device/**",
+        "data/**"
+      ],
+      generalise_pubs: [
+        "sensor/**",
+        "device/**",
+        "data/**"
+      ],
+      tx_channel_size: 65536,
+    }
+  },
+  plugins_loading: {
+    enabled: true
+  }
+}

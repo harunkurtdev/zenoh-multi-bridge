@@ -1,0 +1,28 @@
+mode: peer
+
+connect:
+  endpoints:
+    - tcp/zenoh-router:7447
+
+listen:
+  endpoints:
+    - tcp/zenoh-router:7448
+
+plugins:
+  mqtt:
+    port: 1883
+    scope: mqtt/demo
+    allow: ".*"
+    generalise_pubs:
+      - "sensor/*"
+      - "device/*"
+      - "data/*"
+    generalise_subs:
+      - "sensor/**"
+      - "device/**"
+      - "data/**"
+    tx_channel_size: 65536
+    
+
+plugins_loading:
+  enabled: true
