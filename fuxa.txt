@@ -1,0 +1,18 @@
+
+  # fuxa-scada:
+  #   container_name: fuxascada
+  #   image: frangoteam/fuxa:latest
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - mosquitto
+  #     - zenoh-mqtt-bridge
+  #   ports:
+  #     - '1881:1881'
+  #   volumes:
+  #     - ./fuxascada/data:/usr/src/app/FUXA/server/
+  #   environment:
+  #     - MQTT_BROKER=mosquitto
+  #     - MQTT_PORT=1883
+  #     - TZ=UTC
+  #   networks:
+  #     - zenoh-mqtt-net

@@ -28,6 +28,52 @@ services:
     command: |
       --listen tcp/0.0.0.0:7447 --rest-http-port 8000
 
+  ros2-humble:
+    container_name: ros2-humble
+    build:
+      context: ./ros2-humble
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - '8765:8765'
+    environment:
+      - RUST_LOG=info
+      - ROS_DOMAIN_ID=0
+      - CYCLONEDDS_URI=file:///root/cyclonedds.xml
+    networks:
+      - zenoh-mqtt-net
+    command: |
+      sh -c "
+      ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+      "
+    entrypoint:
+      - /ros_entrypoint.sh
+
+  zenoh-ros2dds-bridge:
+    container_name: zenoh-ros2dds-bridge
+    build:
+      context: ./zenoh-ros2dds-bridge
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - ros2-humble
+      - zenoh-router
+      - zenoh-mqtt-bridge
+    ports:
+      - '8002:8000'
+      - '7449:7449'
+    volumes:
+      - ./zenoh-ros2dds-bridge/config.json5:/etc/zenoh/config.json5
+    environment:
+      - RUST_LOG=debug
+    networks:
+      - zenoh-mqtt-net
+    command:
+      - '-c'
+      - /etc/zenoh/config.json5
+    entrypoint:
+      - /zenoh-bridge-ros2dds
+
   node-red:
     container_name: node-red
     build:
@@ -50,7 +96,7 @@ services:
       - MQTT_ADDR=mosquitto
       - MQTT_PORT=1883
       - ZENOH_MQTT_ADDR=zenoh-mqtt-bridge
-      - ZENOH_MQTT_PORT=1883
+      - ZENOH_MQTT_PORT=1884
     networks:
       - zenoh-mqtt-net
 
@@ -63,6 +109,7 @@ services:
       - zenoh-router
     ports:
       - '8001:8000'
+      - '1884:1883'
     volumes:
       - ./zenoh-mqtt-bridge/config.json5:/etc/zenoh/config.json5
     environment:
@@ -70,6 +117,8 @@ services:
     networks:
       - zenoh-mqtt-net
     command: '-c /etc/zenoh/config.json5'
+    entrypoint:
+      - /zenoh-bridge-mqtt
 
   mqtt-publisher:
     container_name: mqtt-publisher
@@ -89,7 +138,7 @@ services:
         TIME=$$(date -Iseconds);
         # mosquitto_pub -h mosquitto -t 'sensor/temperature' -m 1
         # mosquitto_pub -h mosquitto -p 1884 -t 'sensor/temperature' -m \"{\\\"temp\\\":$$TEMP,\\\"humidity\\\":$$HUM,\\\"timestamp\\\":\\\"$$TIME\\\"}\";
-        mosquitto_pub -h zenoh-mqtt-bridge -t 'sensor/temperature' -m \"{\\\"temp\\\":$$TEMP,\\\"humidity\\\":$$HUM,\\\"timestamp\\\":\\\"$$TIME\\\"}\";
+        mosquitto_pub -h zenoh-mqtt-bridge -p 1884 -t 'sensor/temperature' -m \"{\\\"temp\\\":$$TEMP,\\\"humidity\\\":$$HUM,\\\"timestamp\\\":\\\"$$TIME\\\"}\";
         echo \"[Publisher] Mesaj gönderildi: temp=$$TEMP hum=$$HUM\";
         sleep 1;
       done
