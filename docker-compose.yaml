@@ -50,28 +50,7 @@ services:
       "
     entrypoint:
       - /ros_entrypoint.sh
-
-  ros2-humble-pub:
-    container_name: ros2-humble
-    build:
-      context: ./ros2-humble
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    volumes:
-      - ./ros2-humble/cyclonedds.xml:/root/cyclonedds.xml
-    environment:
-      - RUST_LOG=info
-      - ROS_DOMAIN_ID=0
-      - CYCLONEDDS_URI=file:///root/cyclonedds.xml
-    networks:
-      - zenoh-mqtt-net
-      - zenoh-ros2dds-bridge
-    command: |
-      sh -c "
-      ros2 topic pub /chatter std_msgs/msg/String '{data: Hello from ROS 2 Humble!}' -r 1
-      "
-    entrypoint:
-      - /ros_entrypoint.sh
+  
 
   zenoh-ros2dds-bridge:
     container_name: zenoh-ros2dds-bridge
@@ -97,6 +76,31 @@ services:
       - /etc/zenoh/config.json5
     entrypoint:
       - /zenoh-bridge-ros2dds
+
+  ros2-humble-pub:
+    container_name: ros2-humble-pub
+    build:
+      context: ./ros2-humble
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - ros2-humble
+      - zenoh-ros2dds-bridge
+    volumes:
+      - ./ros2-humble/cyclonedds.xml:/root/cyclonedds.xml
+    environment:
+      - RUST_LOG=info
+      - ROS_DOMAIN_ID=0
+      - CYCLONEDDS_URI=file:///root/cyclonedds.xml
+    networks:
+      - zenoh-mqtt-net
+    command: |
+      sh -c "
+      ros2 topic pub /chatter std_msgs/msg/String '{data: Hello from ROS 2 Humble!}' -r 1
+      "
+    entrypoint:
+      - /ros_entrypoint.sh
+
 
   node-red:
     container_name: node-red
