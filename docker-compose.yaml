@@ -36,6 +36,8 @@ services:
     restart: unless-stopped
     ports:
       - '8765:8765'
+    volumes:
+      - ./ros2-humble/cyclonedds.xml:/root/cyclonedds.xml
     environment:
       - RUST_LOG=info
       - ROS_DOMAIN_ID=0
@@ -45,6 +47,28 @@ services:
     command: |
       sh -c "
       ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+      "
+    entrypoint:
+      - /ros_entrypoint.sh
+
+  ros2-humble-pub:
+    container_name: ros2-humble
+    build:
+      context: ./ros2-humble
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./ros2-humble/cyclonedds.xml:/root/cyclonedds.xml
+    environment:
+      - RUST_LOG=info
+      - ROS_DOMAIN_ID=0
+      - CYCLONEDDS_URI=file:///root/cyclonedds.xml
+    networks:
+      - zenoh-mqtt-net
+      - zenoh-ros2dds-bridge
+    command: |
+      sh -c "
+      ros2 topic pub /chatter std_msgs/msg/String '{data: Hello from ROS 2 Humble!}' -r 1
       "
     entrypoint:
       - /ros_entrypoint.sh
