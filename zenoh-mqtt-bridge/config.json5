@@ -1,6 +1,5 @@
 {
-  mode: "client", // peer or client
-  id: "1",
+  mode: "client",
   connect: {
     endpoints: ["tcp/zenoh-router:7447"] ,
   },
@@ -9,9 +8,8 @@
       http_port: 8000,
     },
     mqtt: {
-      port: "0.0.0.0:1883",
+      port: "0.0.0.0:1884",
       scope: "mqtt/demo",
-      // deny: "private/.*|\\$SYS/.*",
       allow: ".*",
       deny: "^\\$SYS/.*|^private/.*",
       generalise_subs: [

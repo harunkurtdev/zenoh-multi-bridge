@@ -68,6 +68,9 @@ This project is a **multi-protocol bridge** system that enables different protoc
   - Real-time dashboard creation
   - Flow-based programming
 
+![nodered](./docs/assets/nodered.png)
+
+
 #### 7. **Test Components**
 - **MQTT Publisher**: Automatic sensor data generator
 - **MQTT Subscriber**: Client listening to MQTT messages  
@@ -377,18 +380,18 @@ python3 sub.py  # Terminal 2 - Zenoh subscriber
 
 ## 🌐 Available Endpoints
 
-| Service | Port | Protocol | Description |
-|---------|------|----------|-------------|
-| Mosquitto MQTT | 1883 | MQTT | Standard MQTT broker |
-| Mosquitto WebSocket | 9001 | WebSocket | MQTT over WebSocket |
-| Zenoh Router | 7447 | Zenoh | Main Zenoh routing |
-| Zenoh REST API | 8000 | HTTP | Zenoh REST interface |
-| MQTT Bridge | 1884 | MQTT | Bridge MQTT interface |
-| MQTT Bridge API | 8001 | HTTP | Bridge configuration API |
-| ROS2 Bridge | 7449 | Zenoh | ROS2-Zenoh bridge port |
-| ROS2 Bridge API | 8002 | HTTP | ROS2 bridge REST API |
-| Foxglove Bridge | 8765 | WebSocket | ROS2 web visualization |
-| Node-RED | 1880 | HTTP | Flow editor and dashboard |
+| Service             | Port | Protocol  | Description               |
+| ------------------- | ---- | --------- | ------------------------- |
+| Mosquitto MQTT      | 1883 | MQTT      | Standard MQTT broker      |
+| Mosquitto WebSocket | 9001 | WebSocket | MQTT over WebSocket       |
+| Zenoh Router        | 7447 | Zenoh     | Main Zenoh routing        |
+| Zenoh REST API      | 8000 | HTTP      | Zenoh REST interface      |
+| MQTT Bridge         | 1884 | MQTT      | Bridge MQTT interface     |
+| MQTT Bridge API     | 8001 | HTTP      | Bridge configuration API  |
+| ROS2 Bridge         | 7449 | Zenoh     | ROS2-Zenoh bridge port    |
+| ROS2 Bridge API     | 8002 | HTTP      | ROS2 bridge REST API      |
+| Foxglove Bridge     | 8765 | WebSocket | ROS2 web visualization    |
+| Node-RED            | 1880 | HTTP      | Flow editor and dashboard |
 
 ## 🔍 Testing Multi-Protocol Communication
 

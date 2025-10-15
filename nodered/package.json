@@ -4,9 +4,8 @@
     "description": "example setup for node-RED",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "start": "node $NODE_RED_HOME/red.js -v",
-        "serve": "node $NODE_RED_HOME/red.js -v --httpAdminRoot /red --httpNodeRoot /api",
-        "postinstall": "node $NODE_RED_HOME/node_modules/node-red-nodegen/bin/node-red-nodegen --install node-red-contrib-azure-iot-hub-send-c2d node-red-contrib-azure-iot-hub node-red-contrib-grpc node-red-contrib-uuid node-red-contrib-web-worldmap @node-red-contrib-themes/theme-collection",
+        "start": "npx node-red -v",
+        "serve": "npx node-red -v --httpAdminRoot /red --httpNodeRoot /api",
         "prestart": "node $NODE_RED_HOME/node_modules/node-red-dashboard/install.js",
         "update": "npm update --unsafe-perm --no-update-notifier --no-fund",
         "rebuild": "npm rebuild --unsafe-perm --no-update-notifier --no-fund"

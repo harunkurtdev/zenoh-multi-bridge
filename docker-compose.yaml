@@ -1,12 +1,12 @@
-version: '3.8'
+version: "3.8"
 services:
   mosquitto:
     container_name: mosquitto
     image: eclipse-mosquitto:latest
     restart: unless-stopped
     ports:
-      - '1883:1883'
-      - '9001:9001'
+      - "1883:1883"
+      - "9001:9001"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
@@ -19,8 +19,8 @@ services:
     image: eclipse/zenoh:latest
     restart: unless-stopped
     ports:
-      - '7447:7447'
-      - '8000:8000'
+      - "7447:7447"
+      - "8000:8000"
     environment:
       - RUST_LOG=debug
     networks:
@@ -35,7 +35,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - '8765:8765'
+      - "8765:8765"
     volumes:
       - ./ros2-humble/cyclonedds.xml:/root/cyclonedds.xml
     environment:
@@ -50,7 +50,6 @@ services:
       "
     entrypoint:
       - /ros_entrypoint.sh
-  
 
   zenoh-ros2dds-bridge:
     container_name: zenoh-ros2dds-bridge
@@ -63,16 +62,17 @@ services:
       - zenoh-router
       - zenoh-mqtt-bridge
     ports:
-      - '8002:8000'
-      - '7449:7449'
+      - "8002:8000"
+      - "7449:7449"
     volumes:
       - ./zenoh-ros2dds-bridge/config.json5:/etc/zenoh/config.json5
     environment:
       - RUST_LOG=debug
+      - ROS_DOMAIN_ID=0
     networks:
       - zenoh-mqtt-net
     command:
-      - '-c'
+      - "-c"
       - /etc/zenoh/config.json5
     entrypoint:
       - /zenoh-bridge-ros2dds
@@ -100,8 +100,6 @@ services:
       "
     entrypoint:
       - /ros_entrypoint.sh
-
-
   node-red:
     container_name: node-red
     build:
@@ -111,7 +109,7 @@ services:
     depends_on:
       - mosquitto
     ports:
-      - '1880:1880'
+      - "1880:1880"
     volumes:
       - nodered_data:/data
       - ./nodered/data/settings.js:/data/settings.js:rw
@@ -136,15 +134,15 @@ services:
       - mosquitto
       - zenoh-router
     ports:
-      - '8001:8000'
-      - '1884:1883'
+      - "8001:8000"
+      - "1884:1884"
     volumes:
       - ./zenoh-mqtt-bridge/config.json5:/etc/zenoh/config.json5
     environment:
       - RUST_LOG=debug
     networks:
       - zenoh-mqtt-net
-    command: '-c /etc/zenoh/config.json5'
+    command: "-c /etc/zenoh/config.json5"
     entrypoint:
       - /zenoh-bridge-mqtt
 

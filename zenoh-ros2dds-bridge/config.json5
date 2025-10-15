@@ -11,6 +11,7 @@
   plugins: {
     ros2dds: {
       namespace: "/bot1",
+      
       ros_localhost_only: false,
       deny: {
         publishers: [".*/rosout", ".*/.*parameter.*",
