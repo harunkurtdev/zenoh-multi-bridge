@@ -1,0 +1,140 @@
+site_name: Zenoh Multi-Protocol Bridge
+site_description: Comprehensive multi-protocol bridge system connecting Zenoh, MQTT, and ROS2
+site_author: Harun Kurt
+site_url: https://github.com/harunkurtdev/zenoh-multi-bridge
+
+# Repository
+repo_name: harunkurtdev/zenoh-multi-bridge
+repo_url: https://github.com/harunkurtdev/zenoh-multi-bridge
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2024 Harun Kurt
+
+# Configuration
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: harunkurtdev
+      repo: zenoh-multi-bridge
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Plugins
+plugins:
+  - search
+  - tags
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Prerequisites: getting-started/prerequisites.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - System Components: architecture/components.md
+      - Data Flow: architecture/data-flow.md
+      - Network Architecture: architecture/network.md
+  - Components:
+      - Zenoh Router: components/zenoh-router.md
+      - MQTT Broker: components/mqtt-broker.md
+      - Zenoh-MQTT Bridge: components/zenoh-mqtt-bridge.md
+      - ROS2 Humble: components/ros2-humble.md
+      - Zenoh-ROS2DDS Bridge: components/zenoh-ros2dds-bridge.md
+      - Node-RED: components/node-red.md
+      - Test Components: components/test-components.md
+  - Configuration:
+      - Overview: configuration/overview.md
+      - MQTT Bridge Config: configuration/mqtt-bridge.md
+      - ROS2 Bridge Config: configuration/ros2-bridge.md
+      - Docker Compose: configuration/docker-compose.md
+  - Usage:
+      - Testing: usage/testing.md
+      - Multi-Protocol Communication: usage/multi-protocol.md
+      - Monitoring: usage/monitoring.md
+  - Use Cases:
+      - IoT-Robotics Integration: use-cases/iot-robotics.md
+      - Hybrid Communication: use-cases/hybrid-communication.md
+      - Research Platform: use-cases/research.md
+      - Industrial Automation: use-cases/industrial.md
+      - Smart City Applications: use-cases/smart-city.md
+  - API Reference:
+      - Endpoints: api/endpoints.md
+      - REST APIs: api/rest-apis.md
+  - Troubleshooting: troubleshooting.md
+  - Contributing: contributing.md
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/harunkurtdev
+  version:
+    provider: mike
