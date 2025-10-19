@@ -4,7 +4,7 @@ This project is a comprehensive multi-protocol bridge system designed to connect
 
 ## 📚 Documentation
 
-**Complete documentation is available at: [https://harunkurtdev.github.io/zenoh-multi-bridge/](https://harunkurtdev.github.io/zenoh-multi-bridge/)** *(or locally via MkDocs)*
+**Complete documentation available via MkDocs** *(can be deployed to GitHub Pages)*
 
 To view the documentation locally:
 
