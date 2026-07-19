@@ -1,0 +1,17 @@
+{
+  // Zenoh router node R3 (mesh member).
+  mode: "router",
+  connect: {
+    endpoints: ["tcp/zenoh-r1:7447", "tcp/zenoh-r2:7447"],
+  },
+  listen: {
+    endpoints: ["tcp/0.0.0.0:7447"],
+  },
+  scouting: {
+    multicast: { enabled: false },
+    gossip: { enabled: true },
+  },
+  plugins: {
+    rest: { http_port: 8000 },
+  },
+}

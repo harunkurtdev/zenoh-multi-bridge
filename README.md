@@ -338,6 +338,40 @@ python3 sub.py  # Terminal 2 - Zenoh subscriber
 # Foxglove Studio: http://localhost:8765
 ```
 
+## 🤖 MQTT Robotics + Persistent Storage
+
+An MQTT-first robotics stack with **crash-safe storage** of all broker traffic is
+available alongside the base demo. Robots talk MQTT to a **persistent NanoMQ**
+broker; a **recorder** service archives every message to disk so that, after an
+unexpected shutdown, you can review exactly what happened.
+
+```bash
+# Single machine: NanoMQ (persistent) + Zenoh + recorder + 2 simulated robots
+docker compose -f docker-compose-robotics.yaml up -d
+docker compose -f docker-compose-robotics.yaml --profile ros2 up -d   # + ROS2 path
+
+# Distributed 3-node Zenoh mesh (r1/r2/r3)
+docker compose -f docker-compose-distributed.yaml up -d
+
+# Drive & watch robots from the host (needs: pip install paho-mqtt)
+python3 robots/fleet_monitor.py
+python3 robots/teleop.py vel bot1 0.5 0.2
+python3 robots/teleop.py goal bot1 2.0 1.0
+
+# Review recorded history after a shutdown
+python3 recorder/replay.py --dir <record-volume>/records --tail 50
+```
+
+Two persistence layers keep your data safe:
+- **NanoMQ SQLite** (`nanomq_data` volume) — durable sessions / retained / offline messages.
+- **Recorder JSONL** (`record_data` volume) — full timestamped history, fsync'd per message.
+
+Full details: [`docs/robotics/mqtt-robotics.md`](./docs/robotics/mqtt-robotics.md).
+
+Topic scheme: `robots/<id>/cmd/{vel,goal}` (control) and
+`robots/<id>/{telemetry,sensor}/*` (telemetry + sensors), all bridged into Zenoh
+under `mqtt/demo/robots/**` and onward to ROS2.
+
 ## 🌐 Available Endpoints
 
 | Service             | Port | Protocol  | Description               |

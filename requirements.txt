@@ -5,3 +5,6 @@ pymdown-extensions>=10.7
 
 # Zenoh test scripts (pub.py / sub.py)
 eclipse-zenoh>=1.0.0
+
+# MQTT robotics scripts (robots/teleop.py, robots/fleet_monitor.py, recorder/replay.py)
+paho-mqtt>=2.0.0

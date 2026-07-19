@@ -1,0 +1,160 @@
+# =============================================================================
+# Distributed stack — 3-node Zenoh router mesh (r1 / r2 / r3)
+#
+# This single file simulates a 3-PC fleet on one host. The three routers form a
+# full mesh; MQTT/robot data injected at any node is available across the whole
+# mesh. Persistence (NanoMQ + recorder) is attached at r1 here.
+#
+#   zenoh-r1 <====> zenoh-r2
+#      \\             //
+#       \\           //
+#         zenoh-r3
+#
+# Run:
+#   docker compose -f docker-compose-distributed.yaml up -d
+#
+# ---- Splitting onto real machines (PC1/PC2/PC3) -----------------------------
+# 1. Copy this repo to each PC.
+# 2. In zenoh/router-rN.json5, replace the zenoh-rX hostnames with the other
+#    PCs' LAN IPs, e.g. tcp/192.168.1.12:7447.
+# 3. On each PC run only its own router (+ optionally its own nanomq/recorder):
+#       PC1: docker compose -f docker-compose-distributed.yaml up -d zenoh-r1 nanomq recorder
+#       PC2: docker compose -f docker-compose-distributed.yaml up -d zenoh-r2
+#       PC3: docker compose -f docker-compose-distributed.yaml up -d zenoh-r3
+#    (Give each PC's nanomq/recorder its own volume so every node keeps its own
+#     durable archive — that's what lets you review a crashed node afterward.)
+# =============================================================================
+
+services:
+  # --- Router mesh -----------------------------------------------------------
+  zenoh-r1:
+    container_name: zenoh-r1
+    image: eclipse/zenoh:latest
+    restart: unless-stopped
+    ports:
+      - "7447:7447"
+      - "8000:8000"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - ./zenoh/router-r1.json5:/etc/zenoh/router.json5
+    networks:
+      - mesh-net
+    command: "-c /etc/zenoh/router.json5"
+
+  zenoh-r2:
+    container_name: zenoh-r2
+    image: eclipse/zenoh:latest
+    restart: unless-stopped
+    ports:
+      - "7457:7447"
+      - "8010:8000"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - ./zenoh/router-r2.json5:/etc/zenoh/router.json5
+    networks:
+      - mesh-net
+    command: "-c /etc/zenoh/router.json5"
+
+  zenoh-r3:
+    container_name: zenoh-r3
+    image: eclipse/zenoh:latest
+    restart: unless-stopped
+    ports:
+      - "7467:7447"
+      - "8020:8000"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - ./zenoh/router-r3.json5:/etc/zenoh/router.json5
+    networks:
+      - mesh-net
+    command: "-c /etc/zenoh/router.json5"
+
+  # --- Persistence + MQTT injection at node R1 -------------------------------
+  zenoh-mqtt-bridge:
+    container_name: zenoh-mqtt-bridge
+    image: eclipse/zenoh-bridge-mqtt:latest
+    restart: unless-stopped
+    depends_on:
+      - zenoh-r1
+    ports:
+      - "1884:1884"
+      - "8001:8000"
+    volumes:
+      - ./zenoh-mqtt-bridge/config.json5:/etc/zenoh/config.json5
+    environment:
+      - RUST_LOG=info
+    networks:
+      - mesh-net
+    command: "-c /etc/zenoh/config.json5"
+    entrypoint:
+      - /zenoh-bridge-mqtt
+
+  nanomq:
+    container_name: nanomq
+    image: emqx/nanomq:latest
+    restart: unless-stopped
+    depends_on:
+      - zenoh-mqtt-bridge
+    ports:
+      - "1883:1883"
+      - "8081:8081"
+    volumes:
+      - ./nanomq/nanomq.conf:/etc/nanomq/nanomq.conf:ro
+      - nanomq_data:/data
+    networks:
+      - mesh-net
+    command: ["nanomq", "start", "--conf", "/etc/nanomq/nanomq.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 1883 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  recorder:
+    container_name: recorder
+    build:
+      context: ./recorder
+    restart: unless-stopped
+    depends_on:
+      nanomq:
+        condition: service_healthy
+    environment:
+      - BROKER_HOST=nanomq
+      - BROKER_PORT=1883
+      - RECORD_DIR=/data/records
+      - TOPIC_FILTER=#
+    volumes:
+      - record_data:/data
+    networks:
+      - mesh-net
+
+  # --- Example robots (enable with: --profile robots) ------------------------
+  robot-bot1:
+    container_name: robot-bot1
+    profiles: ["robots"]
+    build:
+      context: ./robots
+    restart: unless-stopped
+    depends_on:
+      nanomq:
+        condition: service_healthy
+    environment:
+      - ROBOT_ID=bot1
+      - BROKER_HOST=nanomq
+      - BROKER_PORT=1883
+    networks:
+      - mesh-net
+
+volumes:
+  nanomq_data:
+    driver: local
+  record_data:
+    driver: local
+
+networks:
+  mesh-net:
+    driver: bridge

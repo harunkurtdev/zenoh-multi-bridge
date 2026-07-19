@@ -1,0 +1,183 @@
+# =============================================================================
+# Robotics + Persistence stack (single machine)
+#
+#   robots --MQTT--> NanoMQ (persistent) --bridge--> zenoh-mqtt-bridge
+#                       |                                    |
+#                    recorder                             Zenoh router  --> ROS2 (optional)
+#                 (durable archive)
+#
+# Run:
+#   docker compose -f docker-compose-robotics.yaml up -d
+#   docker compose -f docker-compose-robotics.yaml --profile ros2 up -d   # + ROS2 path
+#
+# All broker/robot traffic is persisted two ways:
+#   1. NanoMQ SQLite store (durable sessions/retained)   -> volume nanomq_data
+#   2. recorder JSONL archive (full replayable history)  -> volume record_data
+# Inspect history after a shutdown:
+#   docker run --rm -v zenoh-multi-bridge_record_data:/data python:3.11-alpine \
+#     sh -c "pip -q install >/dev/null; cat /data/records/*/*.jsonl"
+#   or: python3 recorder/replay.py --dir <path-to-volume>/records --tail 50
+# =============================================================================
+
+services:
+  nanomq:
+    container_name: nanomq
+    image: emqx/nanomq:latest
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT
+      - "8083:8083"   # MQTT over WebSocket
+      - "8081:8081"   # HTTP REST / metrics
+    volumes:
+      - ./nanomq/nanomq.conf:/etc/nanomq/nanomq.conf:ro
+      - nanomq_data:/data
+    networks:
+      - robotics-net
+    command: ["nanomq", "start", "--conf", "/etc/nanomq/nanomq.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "nanomq_cli conn 2>/dev/null || nc -z localhost 1883 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  zenoh-router:
+    container_name: zenoh-router
+    image: eclipse/zenoh:latest
+    restart: unless-stopped
+    ports:
+      - "7447:7447"
+      - "8000:8000"
+    environment:
+      - RUST_LOG=info
+    networks:
+      - robotics-net
+    command: |
+      --listen tcp/0.0.0.0:7447 --rest-http-port 8000
+
+  zenoh-mqtt-bridge:
+    container_name: zenoh-mqtt-bridge
+    image: eclipse/zenoh-bridge-mqtt:latest
+    restart: unless-stopped
+    depends_on:
+      - zenoh-router
+    ports:
+      - "8001:8000"
+      - "1884:1884"
+    volumes:
+      - ./zenoh-mqtt-bridge/config.json5:/etc/zenoh/config.json5
+    environment:
+      - RUST_LOG=info
+    networks:
+      - robotics-net
+    command: "-c /etc/zenoh/config.json5"
+    entrypoint:
+      - /zenoh-bridge-mqtt
+
+  recorder:
+    container_name: recorder
+    build:
+      context: ./recorder
+    restart: unless-stopped
+    depends_on:
+      nanomq:
+        condition: service_healthy
+    environment:
+      - BROKER_HOST=nanomq
+      - BROKER_PORT=1883
+      - RECORD_DIR=/data/records
+      - TOPIC_FILTER=#
+    volumes:
+      - record_data:/data
+    networks:
+      - robotics-net
+
+  robot-bot1:
+    container_name: robot-bot1
+    build:
+      context: ./robots
+    restart: unless-stopped
+    depends_on:
+      nanomq:
+        condition: service_healthy
+    environment:
+      - ROBOT_ID=bot1
+      - BROKER_HOST=nanomq
+      - BROKER_PORT=1883
+      - RATE_HZ=5
+    networks:
+      - robotics-net
+
+  robot-bot2:
+    container_name: robot-bot2
+    build:
+      context: ./robots
+    restart: unless-stopped
+    depends_on:
+      nanomq:
+        condition: service_healthy
+    environment:
+      - ROBOT_ID=bot2
+      - BROKER_HOST=nanomq
+      - BROKER_PORT=1883
+      - RATE_HZ=5
+    networks:
+      - robotics-net
+
+  # --- Optional ROS2 path (heavy build) — enable with: --profile ros2 --------
+  ros2-humble:
+    container_name: ros2-humble
+    profiles: ["ros2"]
+    build:
+      context: ./ros2-humble
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./ros2-humble/cyclonedds.xml:/root/cyclonedds.xml
+    environment:
+      - ROS_DOMAIN_ID=0
+      - CYCLONEDDS_URI=file:///root/cyclonedds.xml
+    networks:
+      - robotics-net
+    command: |
+      sh -c "ros2 launch foxglove_bridge foxglove_bridge_launch.xml"
+    entrypoint:
+      - /ros_entrypoint.sh
+
+  zenoh-ros2dds-bridge:
+    container_name: zenoh-ros2dds-bridge
+    profiles: ["ros2"]
+    build:
+      context: ./zenoh-ros2dds-bridge
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - ros2-humble
+      - zenoh-router
+    ports:
+      - "8002:8000"
+      - "7449:7449"
+    volumes:
+      - ./zenoh-ros2dds-bridge/config.json5:/etc/zenoh/config.json5
+    environment:
+      - RUST_LOG=info
+      - ROS_DOMAIN_ID=0
+    networks:
+      - robotics-net
+    command:
+      - "-c"
+      - /etc/zenoh/config.json5
+    entrypoint:
+      - /zenoh-bridge-ros2dds
+
+volumes:
+  nanomq_data:
+    driver: local
+  record_data:
+    driver: local
+
+networks:
+  robotics-net:
+    driver: bridge

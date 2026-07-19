@@ -15,12 +15,14 @@
       generalise_subs: [
         "sensor/*",
         "device/*",
-        "data/*"
+        "data/*",
+        "robots/*"
       ],
       generalise_pubs: [
         "sensor/**",
         "device/**",
-        "data/**"
+        "data/**",
+        "robots/**"
       ],
       tx_channel_size: 65536,
     }

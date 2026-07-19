@@ -119,6 +119,8 @@ nav:
       - Testing: usage/testing.md
       - Multi-Protocol Communication: usage/multi-protocol.md
       - Monitoring: usage/monitoring.md
+  - Robotics:
+      - MQTT Robotics + Persistence: robotics/mqtt-robotics.md
   - Use Cases:
       - IoT-Robotics Integration: use-cases/iot-robotics.md
       - Hybrid Communication: use-cases/hybrid-communication.md
