@@ -3,10 +3,26 @@ on:
   push:
     branches:
       - master
+  pull_request:
 permissions:
   contents: write
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Validate docker-compose
+        run: docker compose -f docker-compose.yaml config --quiet
+      - name: Python syntax check
+        run: python -m py_compile pub.py sub.py zenoh-subscriber/subscriber.py
+
   deploy:
+    # Only deploy docs from master, and only after validation passes.
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

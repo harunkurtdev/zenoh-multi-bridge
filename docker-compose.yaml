@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   mosquitto:
     container_name: mosquitto
@@ -13,6 +12,12 @@ services:
       - ./mosquitto/log:/mosquitto/log
     networks:
       - zenoh-mqtt-net
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -p 1883 -t healthcheck -m ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   zenoh-router:
     container_name: zenoh-router
@@ -107,7 +112,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
     ports:
       - "1880:1880"
     volumes:
@@ -151,9 +157,12 @@ services:
     image: eclipse-mosquitto:latest
     restart: unless-stopped
     depends_on:
-      - mosquitto
-      - zenoh-router
-      - zenoh-mqtt-bridge
+      mosquitto:
+        condition: service_healthy
+      zenoh-router:
+        condition: service_started
+      zenoh-mqtt-bridge:
+        condition: service_started
     networks:
       - zenoh-mqtt-net
     command: |
@@ -175,9 +184,12 @@ services:
     image: eclipse-mosquitto:latest
     restart: unless-stopped
     depends_on:
-      - mosquitto
-      - zenoh-mqtt-bridge
-      - mqtt-publisher
+      mosquitto:
+        condition: service_healthy
+      zenoh-mqtt-bridge:
+        condition: service_started
+      mqtt-publisher:
+        condition: service_started
     networks:
       - zenoh-mqtt-net
     command: |

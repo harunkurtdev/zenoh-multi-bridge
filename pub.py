@@ -3,7 +3,7 @@ import zenoh
 
 # Zenoh oturumu başlat
 conf = zenoh.Config()
-conf.insert_json5("connect/endpoints", '["tcp/localhost:7447","tcp/localhost:7448"]')
+conf.insert_json5("connect/endpoints", '["tcp/localhost:7447"]')
 
 session = zenoh.open(conf)
 

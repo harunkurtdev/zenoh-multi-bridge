@@ -3,12 +3,12 @@ import time
 
 config = zenoh.Config()
 config.insert_json5("connect/endpoints", '["tcp/localhost:7447"]')
-# config.insert_json5("connect/endpoints", '["tcp/localhost:7448"]')
 
 session = zenoh.open(config)
 
-key_expr = "mqtt/demo/sensor/**"
-key_expr = "mqtt/demo/**"
+# key_expr = "mqtt/demo/sensor/**"
+# key_expr = "mqtt/demo/**"
+key_expr = "node-red/default"
 
 def listener(sample):
     payload = sample.payload.to_string()

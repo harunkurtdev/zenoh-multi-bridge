@@ -2,7 +2,7 @@ import zenoh
 import time
 
 config = zenoh.Config()
-config.insert_json5("connect/endpoints", '["tcp/zenoh-router:7447", "tcp/zenoh-mqtt-bridge:7448"]')
+config.insert_json5("connect/endpoints", '["tcp/zenoh-router:7447"]')
 
 session = zenoh.open(config)
 

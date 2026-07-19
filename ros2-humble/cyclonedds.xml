@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CycloneDDS>
     <Domain>
-	    <General>
-		    <Interfaces>
-			   <NetworkInterface address="127.0.0.1" multicast="true"/>
-		    </Interfaces>
-                    <DontRoute>true</DontRoute>
+        <General>
+            <!--
+              Auto-select the container's network interface (eth0 on the Docker
+              bridge) so DDS discovery works BETWEEN containers. Binding to
+              127.0.0.1 previously kept traffic container-local and prevented
+              ros2-humble and zenoh-ros2dds-bridge from discovering each other.
+            -->
+            <Interfaces>
+                <NetworkInterface autodetermine="true" multicast="true"/>
+            </Interfaces>
+            <AllowMulticast>true</AllowMulticast>
         </General>
     </Domain>
 </CycloneDDS>
