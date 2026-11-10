@@ -372,6 +372,33 @@ Topic scheme: `robots/<id>/cmd/{vel,goal}` (control) and
 `robots/<id>/{telemetry,sensor}/*` (telemetry + sensors), all bridged into Zenoh
 under `mqtt/demo/robots/**` and onward to ROS2.
 
+## 🧩 NanoMQ Cluster (robot + server storage)
+
+Several NanoMQ brokers (one per robot, two on the server) joined into one cluster
+over Zenoh routers. Zenoh storages decide **which topics are kept on the robot,
+on the server, or on both**:
+
+| Topic | Robot | Server |
+|-------|:---:|:---:|
+| `robots/<id>/telemetry/#` | ✅ | ✅ (replicated, catches up after link loss) |
+| `robots/<id>/sensor/#` | ✅ | ❌ |
+| `robots/<id>/cmd/#` | server → robot (live) | |
+| `fleet/#` | ❌ | ✅ |
+
+```bash
+./cluster/scripts/fetch-zenoh-plugins.sh                       # zenoh 1.0.0 plugin libs (once)
+docker compose -f docker-compose-cluster.yaml --profile sim up -d   # server + bot1 + bot2 on one host
+./cluster/scripts/check-storage.sh                             # which node stores what
+docker exec -it nanomq-server-a nanomq_cli sub -h localhost -p 1883 -t 'robots/+/telemetry/#'
+
+# real machines
+docker compose -f docker-compose-cluster-server.yaml up -d
+ROBOT_ID=bot1 SERVER_HOST=192.168.1.10 docker compose -f docker-compose-cluster-robot.yaml up -d
+./cluster/scripts/add-robot.sh bot3                            # add a robot
+```
+
+Full details: [`docs/robotics/nanomq-cluster.md`](./docs/robotics/nanomq-cluster.md).
+
 ## 🌐 Available Endpoints
 
 | Service             | Port | Protocol  | Description               |

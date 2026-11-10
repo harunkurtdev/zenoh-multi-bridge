@@ -1,0 +1,73 @@
+// =============================================================================
+// SERVER Zenoh router (zenohd 1.0.0 + mqtt / storage_manager / fs plugins)
+//
+//  - Robot routers connect here (listen tcp/0.0.0.0:7447).
+//  - MQTT plugin (:1883, container-internal): every server NanoMQ node bridges
+//    into this endpoint -> the NanoMQ nodes form one cluster over Zenoh.
+//  - storage_manager: the SERVER copy of each robot's "telemetry" topics.
+//    Each storage has the same key_expr + replication config as the one on
+//    the robot, so Zenoh keeps both copies aligned (also after a link outage).
+//
+// Adding a robot: ./cluster/scripts/add-robot.sh <robot_id>
+//   (inserts a storage block between the @@ROBOT_STORAGES@@ markers below)
+// =============================================================================
+{
+  id: "1000",
+  mode: "router",
+  listen: {
+    endpoints: ["tcp/0.0.0.0:7447"],
+  },
+  scouting: {
+    // explicit links only (robots dial the server), no multicast discovery
+    multicast: { enabled: false },
+  },
+  timestamping: {
+    // required by storage replication
+    enabled: { router: true, peer: true, client: true },
+  },
+  plugins_loading: {
+    // plugin .so files are mounted at /root/.zenoh/lib (cluster/plugins/lib)
+    enabled: true,
+  },
+  plugins: {
+    mqtt: {
+      port: "0.0.0.0:1883",
+      allow: "^robots/|^fleet/",
+    },
+    rest: {
+      http_port: 8000,
+    },
+    storage_manager: {
+      volumes: {
+        fs: {},
+      },
+      storages: {
+        // ---- ROBOT + SERVER: replicated with the robot-side storage --------
+        // @@ROBOT_STORAGES_BEGIN@@
+        bot1_telemetry: {
+          key_expr: "robots/bot1/telemetry/**",
+          strip_prefix: "robots/bot1/telemetry",
+          volume: { id: "fs", dir: "bot1_telemetry" },
+          replication: { interval: 10, sub_intervals: 5, propagation_delay: 250, hot: 6, warm: 30 },
+        },
+        bot2_telemetry: {
+          key_expr: "robots/bot2/telemetry/**",
+          strip_prefix: "robots/bot2/telemetry",
+          volume: { id: "fs", dir: "bot2_telemetry" },
+          replication: { interval: 10, sub_intervals: 5, propagation_delay: 250, hot: 6, warm: 30 },
+        },
+        // @@ROBOT_STORAGES_END@@
+
+        // ---- SERVER ONLY: fleet-wide data (missions, maps, config ...) -----
+        fleet: {
+          key_expr: "fleet/**",
+          strip_prefix: "fleet",
+          volume: { id: "fs", dir: "fleet" },
+        },
+      },
+    },
+  },
+  adminspace: {
+    permissions: { read: true, write: false },
+  },
+}

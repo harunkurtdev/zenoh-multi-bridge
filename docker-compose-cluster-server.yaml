@@ -1,0 +1,69 @@
+# =============================================================================
+# NanoMQ cluster over Zenoh — SERVER machine
+#
+#   zenoh-server     :7447 (robots dial in), :8000 REST (stored topics)
+#   nanomq-server-a  :1883  ┐ cluster nodes; server apps may connect to either
+#   nanomq-server-b  :1893  ┘
+#
+# Prerequisite (once): ./cluster/scripts/fetch-zenoh-plugins.sh
+# Run:  docker compose -f docker-compose-cluster-server.yaml up -d
+# Open TCP 7447 in the server firewall so the robots can connect.
+# =============================================================================
+
+x-nanomq: &nanomq
+  image: emqx/nanomq:0.25.7-full
+  restart: unless-stopped
+  command: ["nanomq", "start", "--conf", "/etc/nanomq/nanomq.conf"]
+  depends_on: [zenoh-server]
+  networks:
+    - server-net
+  healthcheck:
+    test: ["CMD-SHELL", "nc -z localhost 1883 || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 5s
+
+services:
+  zenoh-server:
+    container_name: zenoh-server
+    image: eclipse/zenoh:1.0.0
+    platform: linux/amd64   # plugin .so files are x86_64
+    restart: unless-stopped
+    command: ["-c", "/etc/zenoh/zenoh.json5"]
+    environment:
+      - RUST_LOG=info
+      - ZENOH_BACKEND_FS_ROOT=/var/zenoh
+    ports:
+      - "7447:7447"
+      - "8000:8000"
+    volumes:
+      - ./cluster/server/zenoh.json5:/etc/zenoh/zenoh.json5:ro
+      - ./cluster/plugins/lib:/root/.zenoh/lib:ro
+      - ./cluster/data/zenoh-server:/var/zenoh
+    networks:
+      - server-net
+
+  nanomq-server-a:
+    <<: *nanomq
+    container_name: nanomq-server-a
+    ports:
+      - "1883:1883"
+      - "8081:8081"
+    volumes:
+      - ./cluster/server/nanomq-a.conf:/etc/nanomq/nanomq.conf:ro
+      - ./cluster/data/nanomq-server-a:/data
+
+  nanomq-server-b:
+    <<: *nanomq
+    container_name: nanomq-server-b
+    ports:
+      - "1893:1883"
+      - "8091:8081"
+    volumes:
+      - ./cluster/server/nanomq-b.conf:/etc/nanomq/nanomq.conf:ro
+      - ./cluster/data/nanomq-server-b:/data
+
+networks:
+  server-net:
+    driver: bridge

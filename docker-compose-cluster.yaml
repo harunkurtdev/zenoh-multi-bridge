@@ -1,0 +1,179 @@
+# =============================================================================
+# NanoMQ cluster over Zenoh — single-host simulation (1 server + 2 robots)
+#
+#   ┌──────────────────────── SERVER ────────────────────────┐
+#   │ nanomq-server-a :1883 ─┐                               │
+#   │ nanomq-server-b :1893 ─┴─► zenoh-server (mqtt+storage) │◄──┐
+#   └────────────────────────────────────────────────────────┘   │ tcp/7447
+#   ┌──────── ROBOT bot1 ────────┐   ┌──────── ROBOT bot2 ────────┐
+#   │ nanomq-bot1 :2883          │   │ nanomq-bot2 :3883          │
+#   │   └─► zenoh-bot1 (storage) ├───┤   └─► zenoh-bot2 (storage) │
+#   └────────────────────────────┘   └────────────────────────────┘
+#
+# Topic placement (see docs/robotics/nanomq-cluster.md):
+#   robots/<id>/telemetry/#  stored on ROBOT + SERVER (zenoh storage replication)
+#   robots/<id>/sensor/#     stored on ROBOT only
+#   robots/<id>/cmd/#        server -> robot (live)
+#   fleet/#                  stored on SERVER only
+#
+# Prerequisite (once): ./cluster/scripts/fetch-zenoh-plugins.sh
+#
+# Run:
+#   docker compose -f docker-compose-cluster.yaml up -d
+#   docker compose -f docker-compose-cluster.yaml --profile sim up -d   # + simulated robots (shell, nanomq_cli)
+#
+# For real machines use docker-compose-cluster-server.yaml on the server and
+# docker-compose-cluster-robot.yaml on every robot.
+# Note: binds the same host ports as the other stacks (1883/7447/8000) — run one at a time.
+# =============================================================================
+
+x-zenoh: &zenoh
+  image: eclipse/zenoh:1.0.0
+  # The plugin .so files in cluster/plugins/lib are built for x86_64 (zenoh 1.0.0)
+  platform: linux/amd64
+  restart: unless-stopped
+  command: ["-c", "/etc/zenoh/zenoh.json5"]
+  networks:
+    - cluster-net
+
+x-nanomq: &nanomq
+  image: emqx/nanomq:0.25.7-full
+  restart: unless-stopped
+  command: ["nanomq", "start", "--conf", "/etc/nanomq/nanomq.conf"]
+  networks:
+    - cluster-net
+  healthcheck:
+    test: ["CMD-SHELL", "nc -z localhost 1883 || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 5s
+
+x-zenoh-env: &zenoh-env
+  - RUST_LOG=info
+  - ZENOH_BACKEND_FS_ROOT=/var/zenoh
+
+services:
+  # ---------------------------------------------------------------- SERVER ---
+  zenoh-server:
+    <<: *zenoh
+    container_name: zenoh-server
+    environment: *zenoh-env
+    ports:
+      - "7447:7447"   # robots connect here
+      - "8000:8000"   # REST: curl localhost:8000/robots/*/telemetry/**
+    volumes:
+      - ./cluster/server/zenoh.json5:/etc/zenoh/zenoh.json5:ro
+      - ./cluster/plugins/lib:/root/.zenoh/lib:ro
+      - ./cluster/data/zenoh-server:/var/zenoh
+
+  nanomq-server-a:
+    <<: *nanomq
+    container_name: nanomq-server-a
+    depends_on: [zenoh-server]
+    ports:
+      - "1883:1883"
+      - "8081:8081"
+    volumes:
+      - ./cluster/server/nanomq-a.conf:/etc/nanomq/nanomq.conf:ro
+      - ./cluster/data/nanomq-server-a:/data
+
+  nanomq-server-b:
+    <<: *nanomq
+    container_name: nanomq-server-b
+    depends_on: [zenoh-server]
+    ports:
+      - "1893:1883"
+      - "8091:8081"
+    volumes:
+      - ./cluster/server/nanomq-b.conf:/etc/nanomq/nanomq.conf:ro
+      - ./cluster/data/nanomq-server-b:/data
+
+  # ------------------------------------------------------------ ROBOT bot1 ---
+  zenoh-bot1:
+    <<: *zenoh
+    container_name: zenoh-bot1
+    environment: *zenoh-env
+    depends_on: [zenoh-server]
+    ports:
+      - "8101:8000"
+    volumes:
+      - ./cluster/robots/bot1/zenoh.json5:/etc/zenoh/zenoh.json5:ro
+      - ./cluster/plugins/lib:/root/.zenoh/lib:ro
+      - ./cluster/data/zenoh-bot1:/var/zenoh
+
+  nanomq-bot1:
+    <<: *nanomq
+    container_name: nanomq-bot1
+    depends_on: [zenoh-bot1]
+    ports:
+      - "2883:1883"
+    volumes:
+      - ./cluster/robots/bot1/nanomq.conf:/etc/nanomq/nanomq.conf:ro
+      - ./cluster/data/nanomq-bot1:/data
+
+  # ------------------------------------------------------------ ROBOT bot2 ---
+  zenoh-bot2:
+    <<: *zenoh
+    container_name: zenoh-bot2
+    environment: *zenoh-env
+    depends_on: [zenoh-server]
+    ports:
+      - "8102:8000"
+    volumes:
+      - ./cluster/robots/bot2/zenoh.json5:/etc/zenoh/zenoh.json5:ro
+      - ./cluster/plugins/lib:/root/.zenoh/lib:ro
+      - ./cluster/data/zenoh-bot2:/var/zenoh
+
+  nanomq-bot2:
+    <<: *nanomq
+    container_name: nanomq-bot2
+    depends_on: [zenoh-bot2]
+    ports:
+      - "3883:1883"
+    volumes:
+      - ./cluster/robots/bot2/nanomq.conf:/etc/nanomq/nanomq.conf:ro
+      - ./cluster/data/nanomq-bot2:/data
+
+  # ------------------------------------- simulated robots (--profile sim) ---
+  sim-bot1:
+    container_name: sim-bot1
+    profiles: ["sim"]
+    image: emqx/nanomq:0.25.7-full
+    restart: unless-stopped
+    depends_on:
+      nanomq-bot1:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/sim-robot.sh"]
+    environment:
+      - ROBOT_ID=bot1
+      - BROKER_HOST=nanomq-bot1
+      - BROKER_PORT=1883
+      - PERIOD=1
+    volumes:
+      - ./cluster/scripts/sim-robot.sh:/sim-robot.sh:ro
+    networks:
+      - cluster-net
+
+  sim-bot2:
+    container_name: sim-bot2
+    profiles: ["sim"]
+    image: emqx/nanomq:0.25.7-full
+    restart: unless-stopped
+    depends_on:
+      nanomq-bot2:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/sim-robot.sh"]
+    environment:
+      - ROBOT_ID=bot2
+      - BROKER_HOST=nanomq-bot2
+      - BROKER_PORT=1883
+      - PERIOD=1
+    volumes:
+      - ./cluster/scripts/sim-robot.sh:/sim-robot.sh:ro
+    networks:
+      - cluster-net
+
+networks:
+  cluster-net:
+    driver: bridge

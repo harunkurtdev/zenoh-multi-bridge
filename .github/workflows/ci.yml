@@ -15,7 +15,13 @@ jobs:
         with:
           python-version: 3.x
       - name: Validate docker-compose
-        run: docker compose -f docker-compose.yaml config --quiet
+        run: |
+          docker compose -f docker-compose.yaml config --quiet
+          docker compose -f docker-compose-cluster.yaml config --quiet
+          docker compose -f docker-compose-cluster-server.yaml config --quiet
+          ROBOT_ID=bot1 SERVER_HOST=127.0.0.1 docker compose -f docker-compose-cluster-robot.yaml config --quiet
+      - name: Shell syntax check
+        run: bash -n cluster/scripts/*.sh
       - name: Python syntax check
         run: python -m py_compile pub.py sub.py zenoh-subscriber/subscriber.py
 

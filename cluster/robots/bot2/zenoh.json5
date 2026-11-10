@@ -1,0 +1,64 @@
+// =============================================================================
+// ROBOT bot2 Zenoh router (zenohd 1.0.0 + mqtt / storage_manager / fs plugins)
+//
+//  - Dials the server router. If the link drops the robot keeps working and
+//    keeps storing locally; on reconnect, replication re-aligns the server copy.
+//  - The server address below is the single-host default; the distributed
+//    compose file overrides it with --cfg (SERVER_HOST).
+//
+// Topic placement:
+//   robots/bot2/telemetry/**  -> stored on ROBOT + SERVER (replicated)
+//   robots/bot2/sensor/**     -> stored on ROBOT only (never subscribed upstream)
+//   robots/bot2/cmd/**        -> server -> robot, not stored
+// =============================================================================
+{
+  id: "2002",
+  mode: "router",
+  listen: {
+    endpoints: ["tcp/0.0.0.0:7447"],
+  },
+  connect: {
+    endpoints: ["tcp/zenoh-server:7447"],
+  },
+  scouting: {
+    multicast: { enabled: false },
+  },
+  timestamping: {
+    enabled: { router: true, peer: true, client: true },
+  },
+  plugins_loading: {
+    enabled: true,
+  },
+  plugins: {
+    mqtt: {
+      port: "0.0.0.0:1883",
+      allow: "^robots/bot2/",
+    },
+    rest: {
+      http_port: 8000,
+    },
+    storage_manager: {
+      volumes: {
+        fs: {},
+      },
+      storages: {
+        // ROBOT + SERVER: pairs with "bot2_telemetry" in cluster/server/zenoh.json5
+        bot2_telemetry: {
+          key_expr: "robots/bot2/telemetry/**",
+          strip_prefix: "robots/bot2/telemetry",
+          volume: { id: "fs", dir: "bot2_telemetry" },
+          replication: { interval: 10, sub_intervals: 5, propagation_delay: 250, hot: 6, warm: 30 },
+        },
+        // ROBOT ONLY: no matching storage/subscriber on the server
+        bot2_sensor: {
+          key_expr: "robots/bot2/sensor/**",
+          strip_prefix: "robots/bot2/sensor",
+          volume: { id: "fs", dir: "bot2_sensor" },
+        },
+      },
+    },
+  },
+  adminspace: {
+    permissions: { read: true, write: false },
+  },
+}

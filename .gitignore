@@ -25,3 +25,7 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# NanoMQ/Zenoh cluster: runtime data + local plugin binaries
+cluster/data/
+cluster/plugins/lib/

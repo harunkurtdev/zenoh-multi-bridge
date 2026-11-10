@@ -121,6 +121,7 @@ nav:
       - Monitoring: usage/monitoring.md
   - Robotics:
       - MQTT Robotics + Persistence: robotics/mqtt-robotics.md
+      - NanoMQ Cluster (robot + server storage): robotics/nanomq-cluster.md
   - Use Cases:
       - IoT-Robotics Integration: use-cases/iot-robotics.md
       - Hybrid Communication: use-cases/hybrid-communication.md
